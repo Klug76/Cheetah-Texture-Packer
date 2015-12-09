@@ -28,9 +28,14 @@ SOURCES += main.cpp\
 HEADERS  += mainwindow.h \
 	view.h \
 	imagepacker.h \
-	maxrects.h
+	maxrects.h \
+    outputjson.h
 FORMS    += mainwindow.ui
 
-QMAKE_CXXFLAGS += -Wextra -Werror
+#QMAKE_CXXFLAGS += -Wextra -Werror
+QMAKE_CXXFLAGS += /D"_CRT_SECURE_NO_WARNINGS"
 
 TRANSLATIONS += tile_ru.ts
+
+
+

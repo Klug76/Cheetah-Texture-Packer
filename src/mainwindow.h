@@ -46,6 +46,7 @@ class MainWindow : public QMainWindow
         {
             QListWidgetItem *listItem;
             QString path;
+            QString get_File_Name() const { return listItem->text(); }
         };
 
     protected:

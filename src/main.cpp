@@ -7,11 +7,13 @@
 #endif
 
 #include "mainwindow.h"
+#include "outputjson.h"
 #include <QTranslator>
 #include <QLocale>
 #include <QDir>
 #include <QDebug>
 #include <QPainter>
+#include <QImageReader>
 #include "stdio.h"
 #include "stdlib.h"
 
@@ -41,6 +43,7 @@ void printHelp(const char *error = NULL)
         "      --autosize-threshold N auto-optimize atlas size (0-100, 0 - disabled)\n"
         "      --min-texture-size WxH auto-optimize minimum size\n"
         "      --sort-order N         select sorting order algorithm (0-4)\n"
+        "      --json                 set json output\n"
         "  -h, -?, --help             show this help and exit\n");
     if(error)
     {
@@ -54,6 +57,7 @@ void printHelp(const char *error = NULL)
 struct packerData
 {
     QString path, file;
+    QString get_File_Name() const { return file; }
 };
 
 ImagePacker *mainPacker;
@@ -99,6 +103,7 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
     imageExtensions << "bmp" << "png" << "jpg" << "jpeg";
+    //qDebug() << QImageReader::supportedImageFormats();
     //command-line version
     if(argc > 1)
     {
@@ -121,185 +126,189 @@ int main(int argc, char *argv[])
         mainPacker = &packer;
         QString outDir = QDir::currentPath();
         QString outFile = "atlas";
+        QString imageFormat("PNG");
+        QString outFormat("");
         for(int i = 1; i < argc; ++i)
         {
             if(check_opt("--help") || check_opt("-h") || check_opt("-?"))
             {
                 printHelp();
+                continue;
             }
-            else
-                if(check_opt("-s") || check_opt("--size"))
+            if(check_opt("-s") || check_opt("--size"))
+            {
+                ++i;
+                if(i >= argc)
                 {
-                    ++i;
-                    if(i >= argc)
-                    {
-                        printHelp("Argument needed for option -s");
-                    }
-                    if(sscanf(argv[i], "%10dx%10d", &textureWidth, &textureHeight) != 2)
-                    {
-                        if(sscanf(argv[i], "%10d", &textureWidth) != 1)
-                        {
-                            printHelp("Wrong texture size format");
-                        }
-                        else
-                        {
-                            textureHeight = textureWidth;
-                        }
-                    }
-                    printf("Setting texture size: %dx%d\n", textureWidth, textureHeight);
+                    printHelp("Argument needed for option -s");
                 }
-                else
-                    if(check_opt("-o") || check_opt("--out-file"))
+                if(sscanf(argv[i], "%10dx%10d", &textureWidth, &textureHeight) != 2)
+                {
+                    if(sscanf(argv[i], "%10d", &textureWidth) != 1)
                     {
-                        ++i;
-                        if(i >= argc)
-                        {
-                            printHelp("Argument needed for option -o");
-                        }
-                        QFileInfo info(argv[i]);
-                        outFile = info.baseName();
-                        outDir = info.absolutePath();
+                        printHelp("Wrong texture size format");
                     }
                     else
-                        if(check_opt("--disable-merge"))
-                        {
-                            merge = false;
-                        }
-                        else
-                            if(check_opt("--disable-crop"))
-                            {
-                                crop = false;
-                            }
-                            else
-                                if(check_opt("--disable-recursion"))
-                                {
-                                    recursion = false;
-                                }
-                                else
-                                    if(check_opt("--square"))
-                                    {
-                                        square = true;
-                                    }
-                                    else
-                                        if(check_opt("--autosize-threshold"))
-                                        {
-                                            autosize = true;
-                                            ++i;
-                                            if(i >= argc)
-                                            {
-                                                printHelp("Argument needed for option --autosize-threshold");
-                                            }
-                                            if((sscanf(argv[i], "%10d", &autosizeThreshold) != 1) ||
-                                                    (autosizeThreshold < 0) ||
-                                                    (autosizeThreshold > 100))
-                                            {
-                                                printHelp("Wrong autosize threshold");
-                                            }
-                                        }
-                                        else
-                                            if(check_opt("--extrude-size"))
-                                            {
-                                                ++i;
-                                                if(i >= argc)
-                                                {
-                                                    printHelp("Argument needed for option --extrude-size");
-                                                }
-                                                if((sscanf(argv[i], "%10d", &extrude) != 1) || (extrude < 0))
-                                                {
-                                                    printHelp("Wrong extrude size");
-                                                }
-                                            }
-                                            else
-                                                if(check_opt("--border-size"))
-                                                {
-                                                    ++i;
-                                                    if(i >= argc)
-                                                    {
-                                                        printHelp("Argument needed for option --border-size");
-                                                    }
-                                                    if((sscanf(argv[i], "%10d", &border) != 1) || (border < 0))
-                                                    {
-                                                        printHelp("Wrong border size");
-                                                    }
-                                                }
-                                                else
-                                                    if(check_opt("--min-texture-size"))
-                                                    {
-                                                        ++i;
-                                                        if(i >= argc)
-                                                        {
-                                                            printHelp("Argument needed for option -min-texture-size");
-                                                        }
-                                                        if(sscanf(argv[i], "%10dx%10d", &minTextureSizeX, &minTextureSizeY) != 2)
-                                                        {
-                                                            if(sscanf(argv[i], "%10d", &minTextureSizeX) != 1)
-                                                            {
-                                                                printHelp("Wrong texture size format");
-                                                            }
-                                                            else
-                                                            {
-                                                                minTextureSizeY = minTextureSizeX;
-                                                            }
-                                                        }
-                                                    }
-                                                    else
-                                                        if(check_opt("--crop-threshold"))
-                                                        {
-                                                            ++i;
-                                                            if(i >= argc)
-                                                            {
-                                                                printHelp("Argument needed for option --crop-threshold");
-                                                            }
-                                                            if((sscanf(argv[i], "%10d", &cropThreshold) != 1) ||
-                                                                    (cropThreshold < 0) ||
-                                                                    (cropThreshold > 255))
-                                                            {
-                                                                printHelp("Wrong crop threshold");
-                                                            }
-                                                        }
-                                                        else
-                                                            if(check_opt("--sort-order"))
-                                                            {
-                                                                ++i;
-                                                                if(i >= argc)
-                                                                {
-                                                                    printHelp("Argument needed for option --sort-order");
-                                                                }
-                                                                if((sscanf(argv[i], "%10d", &sortorder) != 1) ||
-                                                                        (sortorder < 0) ||
-                                                                        (sortorder > 4))
-                                                                {
-                                                                    printHelp("Wrong sortorder must be from 0 to 4");
-                                                                }
-                                                            }
-                                                            else
-                                                                if(check_opt("--disable-border"))
-                                                                {
-                                                                    border = 0;
-                                                                }
-                                                                else
-                                                                    if(check_opt("--enable-rotate"))
-                                                                    {
-                                                                        rotate = true;
-                                                                    }
-                                                                    //dir or file
-                                                                    else
-                                                                    {
-                                                                        QFileInfo file(argv[i]);
-                                                                        if(file.isFile())
-                                                                        {
-                                                                            packerData *data = new packerData;
-                                                                            data->path = file.absoluteFilePath();
-                                                                            data->file = file.fileName();
-                                                                            packer.addItem(data->path, data);
-                                                                        }
-                                                                        else
-                                                                            if(file.isDir())
-                                                                            {
-                                                                                topImageDir = file.absoluteFilePath();
-                                                                                RecurseDirectory(file.absoluteFilePath(), recursion);
-                                                                            }
-                                                                    }
+                    {
+                        textureHeight = textureWidth;
+                    }
+                }
+                printf("Setting texture size: %dx%d\n", textureWidth, textureHeight);
+                continue;
+            }
+            if(check_opt("-o") || check_opt("--out-file"))
+            {
+                ++i;
+                if(i >= argc)
+                {
+                    printHelp("Argument needed for option -o");
+                }
+                QFileInfo info(argv[i]);
+                outFile = info.baseName();
+                outDir = info.absolutePath();
+                continue;
+            }
+            if(check_opt("--disable-merge"))
+            {
+                merge = false;
+                continue;
+            }
+            if(check_opt("--disable-crop"))
+            {
+                crop = false;
+                continue;
+            }
+            if(check_opt("--disable-recursion"))
+            {
+                recursion = false;
+                continue;
+            }
+            if(check_opt("--square"))
+            {
+                square = true;
+                continue;
+            }
+            if(check_opt("--autosize-threshold"))
+            {
+                autosize = true;
+                ++i;
+                if(i >= argc)
+                {
+                    printHelp("Argument needed for option --autosize-threshold");
+                }
+                if((sscanf(argv[i], "%10d", &autosizeThreshold) != 1) ||
+                        (autosizeThreshold < 0) ||
+                        (autosizeThreshold > 100))
+                {
+                    printHelp("Wrong autosize threshold");
+                }
+                continue;
+            }
+            if(check_opt("--extrude-size"))
+            {
+                ++i;
+                if(i >= argc)
+                {
+                    printHelp("Argument needed for option --extrude-size");
+                }
+                if((sscanf(argv[i], "%10d", &extrude) != 1) || (extrude < 0))
+                {
+                    printHelp("Wrong extrude size");
+                }
+                continue;
+            }
+            if(check_opt("--border-size"))
+            {
+                ++i;
+                if(i >= argc)
+                {
+                    printHelp("Argument needed for option --border-size");
+                }
+                if((sscanf(argv[i], "%10d", &border) != 1) || (border < 0))
+                {
+                    printHelp("Wrong border size");
+                }
+                continue;
+            }
+            if(check_opt("--disable-border"))
+            {
+                border = 0;
+                continue;
+            }
+            if(check_opt("--min-texture-size"))
+            {
+                ++i;
+                if(i >= argc)
+                {
+                    printHelp("Argument needed for option -min-texture-size");
+                }
+                if(sscanf(argv[i], "%10dx%10d", &minTextureSizeX, &minTextureSizeY) != 2)
+                {
+                    if(sscanf(argv[i], "%10d", &minTextureSizeX) != 1)
+                    {
+                        printHelp("Wrong texture size format");
+                    }
+                    else
+                    {
+                        minTextureSizeY = minTextureSizeX;
+                    }
+                }
+                continue;
+            }
+            if(check_opt("--crop-threshold"))
+            {
+                ++i;
+                if(i >= argc)
+                {
+                    printHelp("Argument needed for option --crop-threshold");
+                }
+                if((sscanf(argv[i], "%10d", &cropThreshold) != 1) ||
+                        (cropThreshold < 0) ||
+                        (cropThreshold > 255))
+                {
+                    printHelp("Wrong crop threshold");
+                }
+                continue;
+            }
+            if(check_opt("--sort-order"))
+            {
+                ++i;
+                if(i >= argc)
+                {
+                    printHelp("Argument needed for option --sort-order");
+                }
+                if((sscanf(argv[i], "%10d", &sortorder) != 1) ||
+                        (sortorder < 0) ||
+                        (sortorder > 4))
+                {
+                    printHelp("Wrong sortorder must be from 0 to 4");
+                }
+                continue;
+            }
+            if(check_opt("--enable-rotate"))
+            {
+                rotate = true;
+                continue;
+            }
+            if(check_opt("--json"))
+            {
+                outFormat = "json";
+                continue;
+            }
+            //dir or file
+            QFileInfo file(argv[i]);
+            if(file.isFile())
+            {
+                packerData *data = new packerData;
+                data->path = file.absoluteFilePath();
+                data->file = file.fileName();
+                packer.addItem(data->path, data);
+            }
+            else if(file.isDir())
+            {
+                topImageDir = file.absoluteFilePath();
+                RecurseDirectory(file.absoluteFilePath(), recursion);
+            }
         }
 
         qDebug() << "Saving to dir" << outDir << "and file" << outFile;
@@ -320,8 +329,6 @@ int main(int argc, char *argv[])
         packer.autosize = autosize;
         int heuristic = 1;
 
-        QString outFormat("PNG");
-
         if(packer.images.size() == 0)
         {
             fprintf(stderr, "No images found, exitting\n");
@@ -338,70 +345,78 @@ int main(int argc, char *argv[])
             texture.fill(Qt::transparent);
             textures << texture;
         }
-        for(int j = 0; j < textures.count(); j++)
+        if (outFormat == "json")
         {
-            QString outputFile = outDir;
-            outputFile += QDir::separator();
-            outputFile += outFile;
-            if(textures.count() > 1)
+            if (!OutputJson<packerData>::export_File(outDir, outFile, imageFormat.toLower(), textures, packer))
+                fprintf(stderr, "Cannot create json file");
+        }
+        else
+        {
+            for(int j = 0; j < textures.count(); j++)
             {
-                outputFile += QString("_") + QString::number(j + 1);
-            }
-            outputFile += ".atlas";
-            QString imgFile = outFile;
-            if(textures.count() > 1)
-            {
-                imgFile += QString("_") + QString::number(j + 1);
-            }
-            imgFile += ".";
-            imgFile += outFormat.toLower();
-
-            QFile positionsFile(outputFile);
-            if(!positionsFile.open(QIODevice::WriteOnly | QIODevice::Text))
-            {
-                fprintf(stderr, "Cannot create file %s", qPrintable(outputFile));
-            }
-            else
-            {
-                QTextStream out(&positionsFile);
-                out << "textures: " << imgFile << "\n";
-                for(int i = 0; i < packer.images.size(); i++)
+                QString outputFile = outDir;
+                outputFile += QDir::separator();
+                outputFile += outFile;
+                if(textures.count() > 1)
                 {
-                    if(packer.images.at(i).textureId != j)
+                    outputFile += QString("_") + QString::number(j + 1);
+                }
+                outputFile += ".atlas";
+                QString imgFile = outFile;
+                if(textures.count() > 1)
+                {
+                    imgFile += QString("_") + QString::number(j + 1);
+                }
+                imgFile += ".";
+                imgFile += imageFormat.toLower();
+
+                QFile positionsFile(outputFile);
+                if(!positionsFile.open(QIODevice::WriteOnly | QIODevice::Text))
+                {
+                    fprintf(stderr, "Cannot create file %s", qPrintable(outputFile));
+                }
+                else
+                {
+                    QTextStream out(&positionsFile);
+                    out << "textures: " << imgFile << "\n";
+                    for(int i = 0; i < packer.images.size(); i++)
                     {
-                        continue;
+                        if(packer.images.at(i).textureId != j)
+                        {
+                            continue;
+                        }
+                        QPoint pos(packer.images.at(i).pos.x() + packer.border.l + packer.extrude,
+                                   packer.images.at(i).pos.y() + packer.border.t + packer.extrude);
+                        QSize size, sizeOrig;
+                        QRect crop;
+                        sizeOrig = packer.images.at(i).size;
+                        if(!packer.cropThreshold)
+                        {
+                            size = packer.images.at(i).size;
+                            crop = QRect(0, 0, size.width(), size.height());
+                        }
+                        else
+                        {
+                            size = packer.images.at(i).crop.size();
+                            crop = packer.images.at(i).crop;
+                        }
+                        if(packer.images.at(i).rotated)
+                        {
+                            size.transpose();
+                            crop = QRect(crop.y(), crop.x(), crop.height(), crop.width());
+                        }
+                        out << (static_cast<packerData *>(packer.images.at(i).id))->file <<
+                            "\t" <<
+                            pos.x() << "\t" <<
+                            pos.y() << "\t" <<
+                            crop.width() << "\t" <<
+                            crop.height() << "\t" <<
+                            crop.x() << "\t" <<
+                            crop.y() << "\t" <<
+                            sizeOrig.width() << "\t" <<
+                            sizeOrig.height() << "\t" <<
+                            (packer.images.at(i).rotated ? "r" : "") << "\n";
                     }
-                    QPoint pos(packer.images.at(i).pos.x() + packer.border.l + packer.extrude,
-                               packer.images.at(i).pos.y() + packer.border.t + packer.extrude);
-                    QSize size, sizeOrig;
-                    QRect crop;
-                    sizeOrig = packer.images.at(i).size;
-                    if(!packer.cropThreshold)
-                    {
-                        size = packer.images.at(i).size;
-                        crop = QRect(0, 0, size.width(), size.height());
-                    }
-                    else
-                    {
-                        size = packer.images.at(i).crop.size();
-                        crop = packer.images.at(i).crop;
-                    }
-                    if(packer.images.at(i).rotated)
-                    {
-                        size.transpose();
-                        crop = QRect(crop.y(), crop.x(), crop.height(), crop.width());
-                    }
-                    out << (static_cast<packerData *>(packer.images.at(i).id))->file <<
-                        "\t" <<
-                        pos.x() << "\t" <<
-                        pos.y() << "\t" <<
-                        crop.width() << "\t" <<
-                        crop.height() << "\t" <<
-                        crop.x() << "\t" <<
-                        crop.y() << "\t" <<
-                        sizeOrig.width() << "\t" <<
-                        sizeOrig.height() << "\t" <<
-                        (packer.images.at(i).rotated ? "r" : "") << "\n";
                 }
             }
         }
@@ -533,7 +548,7 @@ int main(int argc, char *argv[])
         printf("Atlas generated. %f%% filled, %d images missed, %d merged, %d KB\n",
                percent, packer.missingImages, packer.mergedImages, (int)((area * 4) / 1024));
 
-        //        const char * format = qPrintable(outFormat);
+        //        const char * format = qPrintable(imageFormat);
         for(int i = 0; i < textures.count(); i++)
         {
             QString imgdirFile;
@@ -545,7 +560,7 @@ int main(int argc, char *argv[])
                 imgdirFile += QString("_") + QString::number(i + 1);
             }
             imgdirFile += ".";
-            imgdirFile += outFormat.toLower();
+            imgdirFile += imageFormat.toLower();
             textures.at(i).save(imgdirFile);
         }
 

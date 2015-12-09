@@ -1,9 +1,11 @@
 #include "mainwindow.h"
+#include "outputjson.h"
 #include "ui_mainwindow.h"
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QTextStream>
 #include <QMimeData>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -142,7 +144,6 @@ void MainWindow::deleteSelectedTiles()
 
 void MainWindow::packerUpdate()
 {
-    int i;
     quint64 area = 0;
     packer.sortOrder = ui->sortOrder->currentIndex();
     packer.border.t = ui->borderTop->value();
@@ -160,6 +161,7 @@ void MainWindow::packerUpdate()
     int heuristic = ui->comboHeuristic->currentIndex();
     QString outDir = ui->outDir->text();
     QString outFile = ui->outFile->text();
+    QString imageFormat = ui->imageFormat->currentText();
     QString outFormat = ui->outFormat->currentText();
     bool previewWithImages = ui->previewWithImages->isChecked();
 
@@ -167,7 +169,7 @@ void MainWindow::packerUpdate()
     packer.pack(heuristic, textureWidth, textureHeight);
 
     QList<QImage> textures;
-    for(i = 0; i < packer.bins.size(); i++)
+    for(int i = 0; i < packer.bins.size(); i++)
     {
         QImage texture(packer.bins.at(i).width(), packer.bins.at(i).height(),
                        QImage::Format_ARGB32);
@@ -176,34 +178,40 @@ void MainWindow::packerUpdate()
     }
     if(exporting)
     {
-        for(int j = 0; j < textures.count(); j++)
+        if (outFormat == "Json")
         {
-            QString outputFile = outDir;
-            outputFile += QDir::separator();
-            outputFile += outFile;
-            if(textures.count() > 1)
+            if (!OutputJson<packerData>::export_File(outDir, outFile, imageFormat.toLower(), textures, packer))
+                QMessageBox::critical(0, tr("Error"), tr("Cannot create json file"));
+        }
+        else
+        {
+            for(int j = 0; j < textures.count(); j++)
             {
-                outputFile += QString("_") + QString::number(j + 1);
-            }
-            outputFile += ".atlas";
-            QString imgFile = outFile;
-            if(textures.count() > 1)
-            {
-                imgFile += QString("_") + QString::number(j + 1);
-            }
-            imgFile += ".";
-            imgFile += outFormat.toLower();
+                QString outputFile = outDir;
+                outputFile += QDir::separator();
+                outputFile += outFile;
+                if(textures.count() > 1)
+                {
+                    outputFile += QString("_") + QString::number(j + 1);
+                }
+                outputFile += ".atlas";
+                QString imgFile = outFile;
+                if(textures.count() > 1)
+                {
+                    imgFile += QString("_") + QString::number(j + 1);
+                }
+                imgFile += ".";
+                imgFile += imageFormat.toLower();
 
-            QFile positionsFile(outputFile);
-            if(!positionsFile.open(QIODevice::WriteOnly | QIODevice::Text))
-            {
-                QMessageBox::critical(0, tr("Error"), tr("Cannot create file ") + outputFile);
-            }
-            else
-            {
+                QFile positionsFile(outputFile);
+                if(!positionsFile.open(QIODevice::WriteOnly | QIODevice::Text))
+                {
+                    QMessageBox::critical(0, tr("Error"), tr("Cannot create file ") + outputFile);
+                    break;
+                }
                 QTextStream out(&positionsFile);
                 out << "textures: " << imgFile << "\n";
-                for(i = 0; i < packer.images.size(); i++)
+                for(int i = 0; i < packer.images.size(); i++)
                 {
                     if(packer.images.at(i).textureId != j)
                     {
@@ -242,10 +250,10 @@ void MainWindow::packerUpdate()
                         sizeOrig.height() << "\t" <<
                         (packer.images.at(i).rotated ? "r" : "") << "\n";
                 }
-            }
+            }//:for
         }
     }
-    for(i = 0; i < packer.images.size(); i++)
+    for(int i = 0; i < packer.images.size(); i++)
     {
         if(packer.images.at(i).pos == QPoint(999999, 999999))
         {
@@ -401,7 +409,7 @@ void MainWindow::packerUpdate()
                              area * 4 / 1024));
     if(exporting)
     {
-        const char *format = qPrintable(outFormat);
+        const char *format = qPrintable(imageFormat);
         for(int i = 0; i < textures.count(); i++)
         {
             QString imgdirFile;
@@ -413,8 +421,8 @@ void MainWindow::packerUpdate()
                 imgdirFile += QString("_") + QString::number(i + 1);
             }
             imgdirFile += ".";
-            imgdirFile += outFormat.toLower();
-            if(outFormat == "JPG")
+            imgdirFile += imageFormat.toLower();
+            if(imageFormat == "JPG")
             {
                 textures.at(i).save(imgdirFile, format, 100);
             }

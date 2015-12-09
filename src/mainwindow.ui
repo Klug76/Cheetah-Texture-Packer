@@ -111,7 +111,7 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>325</width>
+           <width>331</width>
            <height>666</height>
           </rect>
          </property>
@@ -1064,7 +1064,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QComboBox" name="outFormat">
+          <widget class="QComboBox" name="imageFormat">
            <item>
             <property name="text">
              <string>PNG</string>
@@ -1094,18 +1094,18 @@
           </widget>
          </item>
          <item>
-          <widget class="QComboBox" name="comboBox">
+          <widget class="QComboBox" name="outFormat">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <item>
             <property name="text">
-             <string>Cheetah</string>
+             <string>Json</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>CSS</string>
+             <string>Cheetah</string>
             </property>
            </item>
           </widget>

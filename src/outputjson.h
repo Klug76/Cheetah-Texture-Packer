@@ -28,6 +28,7 @@ public:
         out << "\t[\n";
         for(int j = 0; j < texture.count(); ++j)
         {
+            QImage const& tex = texture[j];
             QString imgFile = outFile;
             if(texture.count() > 1)
             {
@@ -36,7 +37,10 @@ public:
             imgFile += ".";
             imgFile += imageFormat;
             out << "\t\t{\n";
-            out << "\t\t\t\"name\": \"" << imgFile << "\",\n";
+            out << "\t\t\t\"name\": \"" << imgFile << "\"";
+            out << ", \"width\": " << tex.width();
+            out << ", \"height\": " << tex.height();
+            out << ",\n";
             out << "\t\t\t\"item\":\n";
             out << "\t\t\t[\n";
             int last_idx = 0;
@@ -81,15 +85,13 @@ public:
                 out << ", \"y\": " << pos.y();
                 out << ", \"width\": " << crop.width();
                 out << ", \"height\": " << crop.height();
-                if ((crop.x() != 0) || (crop.y() != 0))
-                {
-                    out << ", \"frameX\": " << -crop.x();
-                    out << ", \"frameY\": " << -crop.y();
-                }
+                bool need_frame = (crop.x() != 0) || (crop.y() != 0);
                 if (img.rotated)
                 {
-                    if ((crop.width() != sizeOrig.height()) || (crop.height() != sizeOrig.width()))
+                    if (need_frame || (crop.width() != sizeOrig.height()) || (crop.height() != sizeOrig.width()))
                     {
+                        out << ", \"frameX\": " << -crop.x();
+                        out << ", \"frameY\": " << -crop.y();
                         out << ", \"frameWidth\": " << sizeOrig.width();
                         out << ", \"frameHeight\": " << sizeOrig.height();
                     }
@@ -97,8 +99,10 @@ public:
                 }
                 else
                 {
-                    if ((crop.width() != sizeOrig.width()) || (crop.height() != sizeOrig.height()))
+                    if (need_frame || (crop.width() != sizeOrig.width()) || (crop.height() != sizeOrig.height()))
                     {
+                        out << ", \"frameX\": " << -crop.x();
+                        out << ", \"frameY\": " << -crop.y();
                         out << ", \"frameWidth\": " << sizeOrig.width();
                         out << ", \"frameHeight\": " << sizeOrig.height();
                     }

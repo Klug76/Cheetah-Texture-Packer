@@ -90,8 +90,8 @@ public:
                 {
                     if (need_frame || (crop.width() != sizeOrig.height()) || (crop.height() != sizeOrig.width()))
                     {
-                        out << ", \"frameX\": " << -crop.x();
-                        out << ", \"frameY\": " << -crop.y();
+                        out << ", \"frameX\": " << -crop.y();
+                        out << ", \"frameY\": " << -crop.x();
                         out << ", \"frameWidth\": " << sizeOrig.width();
                         out << ", \"frameHeight\": " << sizeOrig.height();
                     }
